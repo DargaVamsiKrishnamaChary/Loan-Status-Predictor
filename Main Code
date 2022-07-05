@@ -1,0 +1,120 @@
+#Loan Payment Classifier
+#-----------------------------------------------------------------------------------------------------------
+import itertools
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import NullFormatter
+import pandas as pd
+import numpy as np
+import matplotlib.ticker as ticker
+from sklearn import preprocessing
+%matplotlib inline
+
+
+df = pd.read_csv('loan_train.csv')
+df.head()
+
+df['due_date'] = pd.to_datetime(df['due_date'])
+df['effective_date'] = pd.to_datetime(df['effective_date'])
+df.head()
+
+#Data Visualization and Pre Processing
+#------------------------------------------------------------
+
+import seaborn as sns
+
+bins = np.linspace(df.Principal.min(), df.Principal.max(), 10)
+g = sns.FacetGrid(df, col="Gender", hue="loan_status", palette="Set1", col_wrap=2)
+g.map(plt.hist, 'Principal', bins=bins, ec="k")
+
+g.axes[-1].legend()
+plt.show()
+
+bins = np.linspace(df.age.min(), df.age.max(), 10)
+g = sns.FacetGrid(df, col="Gender", hue="loan_status", palette="Set1", col_wrap=2)
+g.map(plt.hist, 'age', bins=bins, ec="k")
+
+g.axes[-1].legend()
+plt.show()
+
+df['dayofweek'] = df['effective_date'].dt.dayofweek
+bins = np.linspace(df.dayofweek.min(), df.dayofweek.max(), 10)
+g = sns.FacetGrid(df, col="Gender", hue="loan_status", palette="Set1", col_wrap=2)
+g.map(plt.hist, 'dayofweek', bins=bins, ec="k")
+g.axes[-1].legend()
+plt.show()
+
+df['weekend'] = df['dayofweek'].apply(lambda x: 1 if (x>3)  else 0)
+df.head()
+
+df.groupby(['Gender'])['loan_status'].value_counts(normalize=True)
+df['Gender'].replace(to_replace=['male','female'], value=[0,1],inplace=True)
+df.head()
+
+df.groupby(['education'])['loan_status'].value_counts(normalize=True)
+Feature = df[['Principal','terms','age','Gender','weekend']]
+Feature = pd.concat([Feature,pd.get_dummies(df['education'])], axis=1)
+Feature.drop(['Master or Above'], axis = 1,inplace=True)
+Feature.head()
+
+X = Feature
+y = df['loan_status'].values
+
+#Normalization
+#---------------------------------
+X= preprocessing.StandardScaler().fit(X).transform(X)
+
+
+#Classification
+
+from sklearn.model_selection import train_test_split
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=4)
+print('Train set:',X_train.shape,y_train.shape)
+print('Test Set:',X_test.shape,y_test.shape)
+
+#KNN
+from sklearn.neighbors import KNeighborsClassifier
+k=10
+neigh=KNeighborsClassifier(n_neighbors=k).fit(X_train,y_train)
+y_act=neigh.predict(X_test)
+y_act
+
+#DecisionTree
+from sklearn.tree import DecisionTreeClassifier
+dtree=DecisionTreeClassifier(criterion='entropy',max_depth=7).fit(X_train,y_train)
+ydt=dtree.predict(X_test)
+ydt
+
+#LogisticRegression
+from sklearn.linear_model import LogisticRegression
+logre=LogisticRegression(C=0.01,solver='liblinear').fit(X_train,y_train)
+ylog=logre.predict(X_test)
+ylog
+
+#Support Vector Machine
+from sklearn import svm
+vsvm=svm.SVC(kernel='rbf')
+vsvm.fit(X_train,y_train)
+ysvm=vsvm.predict(X_test)
+ysvm
+
+# Model Evaluation
+
+from sklearn.metrics import jaccard_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import log_loss
+
+yknnj=jaccard_score(y_test, y_act,labels=None, pos_label=None ,average=None, sample_weight=None, zero_division='warn')
+ydtj=jaccard_score(y_test, ydt,labels=None,  pos_label=None,average=None, sample_weight=None, zero_division='warn')
+ysvmj=jaccard_score(y_test, ysvm,labels=None,  pos_label=None,average=None, sample_weight=None, zero_division='warn')
+ylogj=jaccard_score(y_test, ylog,labels=None,  pos_label=None,average=None, sample_weight=None, zero_division='warn')
+yknnf=f1_score(y_test,y_act,average='weighted')
+ydtf=f1_score(y_test,ydt,average='weighted')
+ysvmf=f1_score(y_test,ysvm,average='weighted')
+ylogf=f1_score(y_test,ylog,average='weighted')
+yj=[yknnj,ydtj,ysvmj,ylogj]
+yf=[yknnf,ydtf,ysvmf,ylogf]
+for i in yj:
+    print(i)
+for j in yf:
+    print(j)
